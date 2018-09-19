@@ -1,6 +1,6 @@
 # Applied Data Science @ Columbia
 ## Fall 2018
-## Project 1: What made you happy today?
+## Project 1: An analysis of what makes us happy
 
 ![image](figs/title.jpeg)
 
