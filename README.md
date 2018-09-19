@@ -2,7 +2,7 @@
 ## Fall 2018
 ## Project 1: An analysis of what makes us happy
 
-![image](figs/title.jpeg)
+![image](figs/happy_17.png)
 
 ### [Project Description](doc/)
 
