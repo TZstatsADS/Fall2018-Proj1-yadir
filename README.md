@@ -16,6 +16,8 @@ Term: Fall 2018
 
 See [report](http://rpubs.com/yl3435/adsproject1) here!
 
+
+Following [suggestions](https://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](https://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 ```
 proj/
 ├── lib/
