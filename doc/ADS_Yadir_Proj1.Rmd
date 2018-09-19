@@ -1,0 +1,697 @@
+---
+title: 'ADS Project 1: What makes people happy?'
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Yadir Lakehal** 
+**Applied Data Science Project 1 : Happiness Data Story**
+
+###  What if you could solve for happiness? 
+
+Happiness is a life-long pursuit. Everyone experiences some degree of short term "happy moments" in their lives and continue to seek happiness. Everyone has different ways of nurturing, feeding and growing their happiness, but how do you quantify that growth? Is there a general equation or rule  for happiness that applies to everyone? 
+
+**Some people have tried to find out.**
+
+Mo Gawdat, chief business officer of Google X and author of "Solve for Happy" came up with a **Happiness equation ** that states that: "your happiness is equal to or greater than the difference between the events of your life and your expectations of how life should behave".
+
+![](http://www.kristyarnett.com/wp-content/uploads/2017/05/Screen-Shot-2017-05-17-at-1.52.12-PM-1184x630.png){width=80%}
+
+Simply looking at the mathematics of this equation, you can determine that one can easily be happy through life if they have low expectations. 
+
+According to Mo, all you need to be happy is to have low expectations, but now the question becomes: how do you determine and quantify expectations? He tries to answer these questions in "Solve For Happy" in different abstract ways, but it seems like this problem needs more of a concrete approach, so I looked elsewhere. 
+
+I decided to look into a more data-driven attempt at solving for happiness: 
+
+#### **the HappyDB corpus data set**
+
+HappyDB is a corpus of 100,000 crowd-sourced happy moments. The goal of the project is to gain a deeper understanding of the causes of happiness that can be gathered from text. 
+
+It is simply a collection of happy moments described by individuals in the past 24 hours, as seen in an example below: 
+
+1. I was playing with my cats today, they purr happily around me.
+2. My husband pulled in the driveway at the end of the work day, I treasure the time we have together everyday.
+3. We went to the beach and enjoyed the waves and sun, and even got to build a sandcastle.
+4. Just met my darling niece today. What a sweet, beautiful moment being able to hold her.
+5. Spent the day at the park listening to music with friends. It was sunny and breezy out.
+
+ ![](https://chrisdelacruzofficial.files.wordpress.com/2015/09/happy-moments-pic.jpg){width=80%}
+ 
+
+
+
+In this project, I will use the HappyDB corpus dataset to get a more meaningful understanding of the moments that grow happiness.
+
+A logical first step is to find out what people are talking about in their happy moments.
+
+```{r reading_data, include = FALSE}
+
+#Reading Libraries
+library(tidyverse)
+library(tidytext)
+library(DT)
+library(scales)
+library(wordcloud2)
+library(gridExtra)
+library(ngram)
+library(shiny) 
+library(ggplot2)
+library(dplyr)
+#Load all datasets I'm interested in
+processed_data <- read_csv("/Users/yadirlakehal/Documents/GitHub/ADS_Teaching/Projects_StarterCodes/Project1-RNotebook/output/processed_moments.csv")
+demographic_data <- read_csv("/Users/yadirlakehal/Documents/happy_data/demographic.csv")
+vad <- read_csv("/Users/yadirlakehal/Documents/happy_data/vad.csv")
+cleaned_hm <- read_csv("/Users/yadirlakehal/Documents/happy_data/cleaned_hm.csv" )
+
+```
+
+
+```{r combining data, include = FALSE}
+#Combine processed_data with demographic_data and include predicted_category
+new_data <- processed_data %>%
+  inner_join(demographic_data, by = "wid") %>%
+  select(wid,
+         original_hm,
+         gender, 
+         marital, 
+         parenthood,
+         reflection_period,
+         age, 
+         country, 
+         ground_truth_category,
+         predicted_category,
+         text) %>%
+  mutate(count = sapply(processed_data$text, wordcount)) %>%
+  filter(gender %in% c("m", "f")) %>%
+  filter(marital %in% c("single", "married")) %>%
+  filter(parenthood %in% c("n", "y")) %>%
+  filter(reflection_period %in% c("24h", "3m")) %>%
+  mutate(reflection_period = fct_recode(reflection_period, 
+                                        months_3 = "3m", hours_24 = "24h"))
+
+```
+
+**Let's take a look at the HappyDB moments data!**
+
+```{r showing some data, warning=FALSE, message=FALSE, echo = FALSE}
+#Plotting interesting features of data
+select(new_data, original_hm, gender, marital, parenthood, age, predicted_category, text)
+```
+After cleaning the happy moments data, combining it with demographic data and filtering out stop words that don't hold any relevant information, I created a **word cloud** that displays the **200 most mentioned** words in all the happy moments
+
+```{r bag of words, warning=FALSE, message=FALSE, echo=FALSE}
+#General word cloud of all text
+bag_of_words <-  new_data %>%
+  unnest_tokens(word, text)
+
+word_count <- bag_of_words %>%
+  count(word, sort = TRUE)
+library(wordcloud)
+set.seed(1234)
+wordcloud(words = word_count$word, freq = word_count$n, min.freq = 1, max.words=200, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+
+```
+
+**FRIEND**
+
+**DAY**
+
+**TIME**
+
+**FAMILY**
+
+**HOME**
+
+These are just some of the most mentioned words in people's happy moments. 
+
+This suggests that more than everything else, people find happiness in:
+
+ - each other
+ 
+ - their time
+ 
+ - their families
+ 
+Based on their crowd-sourced moments, scientists who collaborated on the HappyDB project have separated happiness into potential categories:
+ 
+ **Achievement**
+ 
+ **Affection**
+ 
+ **Bonding**
+ 
+ **Enjoying Moments**
+ 
+ **Exercise**
+ 
+ **Leisure**
+ 
+ **Nature**
+ 
+ What do we think the most popular category is?
+ 
+ Based on the word cloud and simple intuition, I would guess that affection and bonding would be the most popular categories! Let's find out!
+ 
+ 
+```{r plotting categories, warning=FALSE, message=FALSE, echo = FALSE}
+
+#Counting categories of happiness
+categ_count = data.frame(count(new_data, predicted_category))
+
+
+
+ggplot(categ_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "maroon", stat = "identity", color = "black") +
+  geom_text(aes(label = n), vjust = -0.3) +
+  xlab("Predicted Categories") +
+  ylab("Count") +
+  ggtitle ("Count of categories for all happy moments")
+
+```
+
+Just like I predicted, **Affection** is the most popular category, but it is almost equivalent to **Achievement**  and even though my second guess **bonding** is mentioned about 3 times as little, it still stands at third place. 
+
+Even though it wasn't particularly illustrated in the word cloud, this graphic indicates that people's happiness is primarily caused by both giving (**affection**) and accomplishing (**achievement**)
+
+
+It would be interesting to see if that were the truth for everyone? 
+
+The HappyDB project includes demographic data on people's age, let's find out what makes different age groups happy!
+
+Before we can categorize ages, let's look at how old everyone who contributed to the happydb project is! 
+
+```{r Age Groups, warning=FALSE, message=FALSE, echo=FALSE}
+#Deleting unwanted age data
+missing.age <- is.na(new_data$age)
+new_data <- new_data[!missing.age,] #removes all missing ages
+
+#Creating distribution of age
+hist(as.numeric(new_data$age), breaks = 500, xlim =c(0,100), ylim =c(0,7000), xlab = "age", ylab = "Count", main = "How old is everyone?", fill = "Pink", col = "turquoise")
+```
+
+Hmm..looks like most people are in their 30s. To confirm that thought, I calculated the mean and found it to be 31.8. 
+
+
+
+The International Standardized Survey Classifications group classifies age groups as:
+
+**15-24: Teens/Mid Twenties**
+
+**25-34: Young Adults**
+
+**35-64: Adults**
+
+**65 + : Seniors**
+
+
+which is how I decided to separate age groups for this data analysis project. 
+
+
+### Happiness and Age
+
+**Now, let's plot what category is the most common amongst each age group! **
+
+```{r Age Analysis, warning=FALSE, message=FALSE, echo= FALSE}
+
+#Define Age Categories
+teens_to_mid_twenties <- new_data[ which(new_data$age > 15 & new_data$age <= 24), ]
+young_adults <- new_data[ which(new_data$age >= 25 & new_data$age <= 34), ]
+adults <- new_data[ which(new_data$age >= 35 & new_data$age <= 64), ]
+seniors <- new_data[ which(new_data$age >= 56 & new_data$age <= 95), ] 
+
+#Bar Plot for each category
+teens_to_mid_twenties_count = data.frame(count(teens_to_mid_twenties, predicted_category))
+
+teens_to_mid_twenties_count$percent <- round((teens_to_mid_twenties_count$n/sum(teens_to_mid_twenties_count$n))*100, 2)
+
+age_plot_1 <- ggplot(teens_to_mid_twenties_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "turquoise", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.7) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for teens to mid twenties") +
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+
+young_adults_count = data.frame(count(young_adults, predicted_category))
+
+young_adults_count$percent <- round((young_adults_count$n/sum(young_adults_count$n))*100, 2)
+
+age_plot_2 <- ggplot(young_adults_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "blue", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.3) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for young adults") +
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+adults_count = data.frame(count(adults, predicted_category))
+
+adults_count$percent <- round((adults_count$n/sum(adults_count$n))*100, 2)
+
+
+age_plot_3 <- ggplot(adults_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "pink", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.3) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for adults") + 
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+seniors_count = data.frame(count(seniors, predicted_category))
+
+seniors_count$percent <- round((seniors_count$n/sum(seniors_count$n))*100, 2)
+
+age_plot_4 <- ggplot(seniors_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "maroon", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.3) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for seniors") +
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+
+# Grid arrange my plots
+grid.arrange(age_plot_1,age_plot_2, ncol=2, nrow=1)
+
+
+grid.arrange(age_plot_3,age_plot_4, ncol=2, nrow=1)
+```
+
+
+You can notice from these plots that when you are younger, your "happy moments" are more focused on **achievements** and as you get older, they tend to shift towards **affection**.
+
+This seems logical because people generally tend to either achieve what they have wanted to achieve at an older age, or they start caring less about achieving and more  about connecting with the people in their lives.
+
+Another detail you can notice from these plots is that there is a slight decrease in the mention of **exercise** and a slight increase in the mention of **nature** as you get older!
+
+As you grow older, you tend to accept that your body cannot perform as well and you focus less on exercising but maybe as a trade off, you are more connected with your surroundings and nature. Older people who are retired also have more time to connect with nature!
+
+There seems to be an obvious shift in what makes people happy as you get older, but let's see if that's illustrated through word clouds. 
+
+**What do the youngest participants say the most?**
+
+**What do the oldest participants say the most?**
+
+Below, you can look at the most mentioned words for *teenagers to mid-twenties* as well as *seniors* in that order
+
+
+```{r Age Word Clouds, warning=FALSE, message=FALSE, echo=FALSE}
+
+#Word Clouds for teens to mid twenties
+
+bag_of_words_teens_to_mid_twenties <-  teens_to_mid_twenties %>%
+  unnest_tokens(word, text)
+
+word_count_teens_to_mid_twenties <- bag_of_words_teens_to_mid_twenties %>%
+  count(word, sort = TRUE)
+library(wordcloud)
+set.seed(1235)
+wc1 <-wordcloud(words = word_count_teens_to_mid_twenties$word, freq = word_count_teens_to_mid_twenties$n, min.freq = 1, max.words=200, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+
+#Word Clouds for seniors
+bag_of_words_seniors <-  seniors %>%
+  unnest_tokens(word, text)
+
+word_count_seniors <- bag_of_words_seniors %>%
+  count(word, sort = TRUE)
+library(wordcloud)
+set.seed(1235)
+wc4 <- wordcloud(words = word_count_seniors$word, freq = word_count_seniors$n, min.freq = 1, max.words=200, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+
+
+
+
+
+
+```
+
+It makes sense that the words *son*, *daughter*, and *husband* are much more common for the senior category and that the words *girlfriend* and *boyfriend* are more common in the mid-twenties category.
+
+You can also notice that the seniors do not necessarily have a much stronger appreciation for connections. Words that stand out are *time*, *life*, *love*,*nice*, *mom*,*friend*, *time* for both the young and the old!
+
+
+We've looked at how age affects happy moments, what about marriage? 
+Let's look at what married and single people are saying!
+
+### Happiness and Marriage
+
+**Let's plot what category is the most common amongst married couples and single participants **
+
+
+```{r Marriage analysis, warning=FALSE, message=FALSE, echo = FALSE}
+
+#Define Married and Single
+married <- new_data[which(new_data$marital == "married"),]
+single <- new_data[which(new_data$marital == "single"),]
+
+#Married Plot
+married_count = data.frame(count(married, predicted_category))
+
+married_count$percent <- round((married_count$n/sum(married_count$n))*100, 2)
+
+married_plot <- ggplot(married_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "turquoise", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.7) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for Married people") +
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+#Single Plot
+single_count = data.frame(count(single, predicted_category))
+
+single_count$percent <- round((single_count$n/sum(single_count$n))*100, 2)
+
+single_plot <- ggplot(single_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "turquoise", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.7) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for single people") +
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+
+grid.arrange(single_plot,married_plot, ncol=2, nrow=1)
+
+
+
+```
+
+#### *Single people are affectionate!*
+
+At first this was surprising, but single people care much more about *affection* and *bonding*! 
+
+Put a little thought into it, and it made sense! Married couples have found the affection and bonding they've needed, so when single participants engage in affectionate or bonding moments, they tend to associate them with happiness more!
+
+We've all heard the same funny stories about marriage getting boring after a while, but what about parenthood? 
+
+**Does having children affect what makes you happy? **
+
+### Happiness and Parenthood
+
+**Now, let's plot what category is the most common amongst each age group! **
+
+
+
+```{r Parent Analysis, warning=FALSE, message=FALSE, echo = FALSE}
+
+parent <- new_data[which(new_data$parenthood == "y"),]
+non_parent <- new_data[which(new_data$parenthood == "n"),]
+
+#Parent Plot
+parent_count = data.frame(count(parent, predicted_category))
+
+parent_count$percent <- round((parent_count$n/sum(parent_count$n))*100, 2)
+
+parent_plot <- ggplot(parent_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "turquoise", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.7) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for parents") +
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+#Non_Parent_Plot
+non_parent_count = data.frame(count(non_parent, predicted_category))
+
+non_parent_count$percent <- round((non_parent_count$n/sum(non_parent_count$n))*100, 2)
+
+non_parent_plot <- ggplot(non_parent_count, aes(x = predicted_category, y = n)) +
+  geom_bar(fill = "turquoise", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.7) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for non parents") +
+  theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+grid.arrange(parent_plot,non_parent_plot, ncol=2, nrow=1)
+
+
+```
+
+#### *Parents are affectionate!*
+
+This result made absolute sense -- parents will often associate happiness with their children, so *affection* was the logical popular category for parents, and *achievement* remained the most popular category by far for non parents.
+
+It was also interesting to see that non parents seem happier about *bonding* than parents, especially because non parents are generally younger! 
+
+This is maybe because non parents seek out *bonding* moments as they do not have children or (probably) a spouse yet!
+
+
+
+As a single young adult with no children, this made me think of what would personally drive my happy moments, and more often that not, I would think of my environment affecting my happiness. The weather, the season, and the general atmosphere of where I tend to be drastically affects my mood.
+
+**Naturally, I decided to take a look at what seasons people brought up the most!** 
+
+
+
+
+
+```{r Weather Analysis, warning=FALSE, message=FALSE, include = FALSE}
+text_data = new_data$original_hm
+
+text2 = strsplit(text_data," ")
+
+#Look for key words: all four seasons
+summer <- c("summer")
+require(stringi)
+stri_detect_fixed(text2, summer)
+
+spring <- c("spring")
+require(stringi)
+stri_detect_fixed(text2, spring)
+
+winter <- c("winter")
+require(stringi)
+stri_detect_fixed(text2, winter)
+
+autumn <- c("fall","autumn")
+require(stringi)
+stri_detect_fixed(text2, autumn)
+
+
+summer_count <- sum(stri_detect_fixed(text2, summer))
+spring_count <- sum(stri_detect_fixed(text2, spring))
+winter_count <- sum(stri_detect_fixed(text2, winter))
+autumn_count <- sum(stri_detect_fixed(text2, autumn))
+```
+
+
+
+### Happiness and Seasons
+
+**What season of the year do people associate the most with happiness?**
+
+
+Parsing through all the happy moments text data, I looked for which season of the year was brought up the most.
+
+From my own experience, I tend to think of happier moments throughout the *summer* because the weather is generally nicer, and I take on more vacations.
+
+Will that be the case for everyone else?
+
+I plotted the occurence of all seasons in the text data to find out!
+
+```{r Weather Graphs, warning=FALSE, message=FALSE, echo=FALSE}
+#Graph Most popular seasons
+df <- data.frame(seasons=c("summer","spring","winter","autumn"),counts=c(summer_count,spring_count,winter_count,autumn_count))
+
+
+ggplot(df, aes(x = seasons, y = counts)) +
+  geom_bar(fill = "maroon", stat = "identity", color = "pink") +
+  geom_text(aes(label = counts), vjust = -0.3) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("What are the most popular seasons?")
+
+```
+
+
+
+Just as I guessed, *summer* is the happiest season by a large margin. You can notice that  *spring*, *autumn*, and *winter* are significantly less brought up, but in the order in which they are brought up makes sense, seems like the warmer the season the more it is brought up in happy moments.
+
+This made me wonder..**how does geography affect happiness? **
+
+**Where are people happy? **
+
+**What makes people of different parts of the world happy?**
+
+
+Asking myself these questions reminded me of [World Happiness Report](https://s3.amazonaws.com/happiness-report/2018/WHR_web.pdf), a project ran by Columbia University's Earth Institute, while I was an undergraduate student there. It is a project that studied happiness worldwide and ranked 156 countries by their happiness levels.
+
+Their research, focusing on six key variables that have been found to support well-being: *income*, *healthy life expectancy*,*social support*,*freedom*, *trust* and *generosity* attempted to map out and rank happiness worldwide, as shown below.
+
+### World Map of Happiness
+
+![](https://img.washingtonpost.com/wp-apps/imrs.php?src=https://img.washingtonpost.com/blogs/worldviews/files/2013/09/happiness-rankings.jpg&w=1484){width=70%}
+
+
+### World's Happiest Places Ranked
+![](http://cphpost.dk/wp-content/uploads/2018/03/Unavngivet-557x390.png){width=70%}
+
+
+After having read the [World Happiness Report](https://s3.amazonaws.com/happiness-report/2018/WHR_web.pdf), I decided to look into what the *happiest* countries were happy about.
+
+I only looked at the data submitted by participants from the top 10 happiest countries, according to the above report and analyzed what made *them* happy!
+
+Additionally, I was interested in what they were saying. Using the same data, I created a word cloud illustrating the most common words mentioned by participants from the happiest countries!
+
+###Happy moments from the *happiest countries*
+
+
+
+
+
+```{r Happiness Index, warning=FALSE, message=FALSE, echo=FALSE}
+#unique(new_data$country)
+#Define Happy Countries
+happy_countries <- new_data[ c(which(new_data$country == "NOR"),which(new_data$country == "SWE"),which(new_data$country == "FIN"),which(new_data$country == "DNK"),which(new_data$country == "ISL"),which(new_data$country == "NZL"),which(new_data$country == "AUS"),which(new_data$country == "CAN"),which(new_data$country == "NLD"),which(new_data$country == "ISR")),]
+
+
+
+#View(happy_countries)
+
+#Count Happy countries
+happy_countries_count = data.frame(count(happy_countries, predicted_category))
+
+happy_countries_count$percent <- round((happy_countries_count$n/sum(happy_countries_count$n))*100, 2)
+#Plot Happy Countries
+ggplot(happy_countries_count, aes(x = predicted_category, y = percent)) +
+  geom_bar(fill = "maroon", stat = "identity") +
+  geom_text(aes(label = percent), vjust = -0.3) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Frequency of categories for top 10 happy countries") +
+  theme(text = element_text(size=6),
+        axis.text.x = element_text(angle=90, hjust=1))
+
+
+# World cloud analysis of happy countries
+bag_of_words_happy_countries <-  happy_countries %>%
+  unnest_tokens(word, text)
+
+word_count_happy_countries <- bag_of_words_happy_countries %>%
+  count(word, sort = TRUE)
+library(wordcloud)
+set.seed(1235)
+wordcloud(words = word_count_happy_countries$word, freq = word_count_happy_countries$n, min.freq = 1, max.words=200, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+
+```
+#### *Countries with high happiness index care about achivement!*
+
+Interesting! 
+
+Participants who are from highly ranked *happy* countries are largely more focused on *achieving*, rather than *affection*. 
+
+My first thought is that maybe this has something to do with personal success, income, and a wealthier lifestyle because the *happiest* countries all seem to be countries with high-earning populations.
+
+To confirm that, I compared the top *happy* countries with the top *countries with the highest median salaries* and to my surprise, there were only **3** countries in common: *Luxembourg*, *Canada*, and *Switzerland*. 
+
+
+
+
+![](http://infographic.statista.com/normal/chartoftheday_13093_the_countries_with_the_highest_salaries_n.jpg){width=70%}
+
+
+### Hmm..looks like money **doesn't** buy happiness! 
+
+**or..does it?**
+
+We don't have any info on participant's incomes, but we do know what they're saying!
+
+Money, materialism, and owning things are often associated with both happiness and unhappiness.
+
+Similarly, generosity, sharing and giving back are often associated with happiness.
+
+ I decided to do another analysis on the happy moments data to check whether people associated **owning** things or **giving** things more with their happiness!
+ 
+ 
+I gathered a list of words associated with *owning* such as :
+
+"money","job""bought","found","car","business","received","product","promotion"
+"phone" and "job"
+
+and did the same for words associated with *giving*:
+
+"friend","family","people","love","shared","girlfriend","boyfriend","boyfriend","sister","brother"
+
+Only searching for my list of associated words, I was able to determine what people talked more about through the following plot:
+
+```{r owning_analysis, warning=FALSE, message=FALSE, include=FALSE}
+
+
+
+owning <- c("money","job","bought","found","car","business","received","product","promotion","phone")
+require(stringi)
+stri_detect_fixed(text2, owning)
+
+giving <- c("friend","family","people","love","shared","girlfriend","boyfriend","boyfriend","sister","brother")
+require(stringi)
+stri_detect_fixed(text2, giving)
+
+owning_count <- sum(stri_detect_fixed(text2, owning))
+giving_count <- sum(stri_detect_fixed(text2, giving))
+```
+
+```{r owning_graphs, warning=FALSE, message=FALSE, echo=FALSE}
+
+df2 <- data.frame(categories=c("owning","giving"),counts=c(owning_count,giving_count))
+
+ggplot(df2, aes(x = categories, y = counts)) +
+  geom_bar(fill = "turquoise", stat = "identity", color = "black") +
+  geom_text(aes(label = counts), vjust = -0.3) +
+  xlab("Predicted Categories") +
+  ylab("Frequency") +
+  ggtitle ("Owning vs Giving")
+
+```
+
+
+**Participants seem to be more fulfilled with *giving*, which makes sense considering the previous word clouds and plots from this analysis.**
+
+
+
+###  Summary
+![](http://tns.thenews.com.pk/wp-content/uploads/2018/02/Moodstreet.jpg)
+
+**Affection and Achievement drive people's happiness the most **
+
+**As you get older,  you start caring more about affection and bonding and less about achievements!**
+
+**When you’re single, you are more driven by affection!**
+
+**When you have children, your happiness is more driven by affection**
+
+
+
+**Summer is the season of the year that drives happiness the most!**
+
+**Countries from high happy indexes are more driven towards achievement and personal success, but materialism is not what makes people the happiest!**
+
+*faith in humanity restored*
+
+
+
+### References
+
+1) https://rit-public.github.io/HappyDB/
+
+2) https://s3.amazonaws.com/happiness-report/2018/WHR_web.pdf
+
+3) https://www.businessinsider.com/mo-gawdat-google-x-business-officer-explains-happiness-equation-how-it-can-help-you-2017-11
+
+4) https://www.statista.com/chart/13093/the-countries-with-the-highest-salaries/
+
+
+
