@@ -5,7 +5,7 @@
 ![image](figs/title.jpeg)
 
 ### [Project Description](doc/)
-This is the first and only *individual* (as opposed to *team*) this semester. 
+
 
 Term: Fall 2018
 
