@@ -2,7 +2,7 @@
 ## Fall 2018
 ## Project 1: An analysis of what makes us happy
 
-![image](figs/happy_17.png)
+![image](http://drelen.com.au/wp-content/uploads/2018/08/Moodstreet.jpg)
 
 ### [Project Description](doc/)
 
