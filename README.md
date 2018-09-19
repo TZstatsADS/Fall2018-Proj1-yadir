@@ -1,6 +1,6 @@
 # Applied Data Science @ Columbia
 ## Fall 2018
-## Project 1: An analysis of what makes us happy
+## Project 1: A Data Story on Happiness
 
 ![image](http://drelen.com.au/wp-content/uploads/2018/08/Moodstreet.jpg)
 
