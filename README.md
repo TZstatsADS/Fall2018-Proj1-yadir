@@ -9,7 +9,7 @@
 
 Term: Fall 2018
 
-+ Projec title: Analysis of Happy Moments
++ Projec title: A Data Story on Happiness
 + This project is conducted by Yadir Lakehal
 
 + Project summary: In this project, I will analyze crowd-sourced text data of happy moments to determine any trends in what makes different people happy throughout their lifetime and throughout the world!
